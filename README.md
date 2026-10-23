@@ -11,18 +11,6 @@ A beginner-friendly Python + Flask web app that recommends songs by calling the 
 - A modern browser
 
 **No API key is required** for the iTunes Search API. The API is provided by Apple and its results, preview availability, and regional catalog may vary.
-
-## Project structure
-
-song_recommendation_chatbot/
-├── app.py
-├── requirements.txt
-├── README.md
-├── templates/
-│   └── index.html
-└── static/
-    └── style.css
-
 ## Run on Windows
 
 1. Extract the ZIP file.
