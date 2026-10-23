@@ -2,7 +2,7 @@
 
 A beginner-friendly Python + Flask web app that recommends songs by calling the public **iTunes Search API**. It can search by artist, title, genre, language, or mood-related words. Results may include album artwork, track links, and short audio previews when available.
 
-**Project link https://chatbot-song-recommendation-system.onrender.com/**
+**Project link https://chatbotsong-recommendationsystem.onrender.com**
 
 ## Requirements
 
