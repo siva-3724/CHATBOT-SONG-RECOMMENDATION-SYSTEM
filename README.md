@@ -4,6 +4,9 @@ A beginner-friendly Python + Flask web app that recommends songs by calling the 
 
 **Project link https://chatbotsong-recommendationsystem.onrender.com**
 
+**<img width="1917" height="1078" alt="image" src="https://github.com/user-attachments/assets/1dbb0917-e306-44e4-bbad-487953ce6148" />
+[![Watch the video](https://img.youtube.com/vi/"C:\Users\sivap\OneDrive\Videos\Screen Recordings\Screen Recording 2026-10-23 133514.mp4")](https://www.youtube.com/watch?v="C:\Users\sivap\OneDrive\Videos\Screen Recordings\Screen Recording 2026-10-23 133514.mp4")**
+
 ## Requirements
 
 - Python 3.10 or newer
