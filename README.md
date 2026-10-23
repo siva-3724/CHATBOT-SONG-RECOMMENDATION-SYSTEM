@@ -6,9 +6,8 @@ A beginner-friendly Python + Flask web app that recommends songs by calling the 
 
 **<img width="1917" height="1078" alt="image" src="https://github.com/user-attachments/assets/1dbb0917-e306-44e4-bbad-487953ce6148" />
 
-![Demo Screen Recording](
+![Uploading ezgif-optimized.gif…]()
 
-)**
 
 ## Requirements
 
