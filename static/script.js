@@ -1,0 +1,512 @@
+
+
+/* =========================================================
+   MELODYMATCH — CHATBOT + 3D INTERACTION ENGINE
+   Works with your existing Flask /api/recommend endpoint
+   ========================================================= */
+
+"use strict";
+
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("chat-form");
+  const input = document.getElementById("message-input");
+  const messages = document.getElementById("messages");
+  const sendButton = document.getElementById("send-button");
+  const page = document.querySelector(".page");
+  const workspace = document.querySelector(".workspace");
+
+  if (!form || !input || !messages || !sendButton) {
+    console.error("MelodyMatch: Required chatbot elements are missing.");
+    return;
+  }
+
+  const reducedMotion = window.matchMedia(
+    "(prefers-reduced-motion: reduce)"
+  ).matches;
+
+  const touchDevice = window.matchMedia(
+    "(hover: none), (max-width: 600px)"
+  ).matches;
+
+  let requestPending = false;
+
+  /* -------------------------------------------------------
+     1. Floating music particles
+     ------------------------------------------------------- */
+
+  function createAmbientParticles() {
+    if (!page || reducedMotion) return;
+
+    const existing = page.querySelector(".mm-particles");
+    if (existing) return;
+
+    const container = document.createElement("div");
+    container.className = "mm-particles";
+    container.setAttribute("aria-hidden", "true");
+
+    const particleCount = touchDevice ? 12 : 24;
+    const symbols = ["♫", "♪", "♬"];
+    const colors = ["#8b5cf6", "#4de2ed", "#f472b6"];
+
+    for (let i = 0; i < particleCount; i++) {
+      const isNote = i % 4 === 0;
+      const particle = document.createElement("span");
+
+      particle.className = isNote
+        ? "mm-music-note"
+        : "mm-particle";
+
+      if (isNote) {
+        particle.textContent = symbols[i % symbols.length];
+      }
+
+      const duration = 11 + Math.random() * 12;
+      const delay = -(Math.random() * duration);
+      const size = isNote
+        ? 17 + Math.random() * 15
+        : 2 + Math.random() * 4;
+
+      particle.style.setProperty(
+        "--mm-x",
+        `${Math.random() * 100}%`
+      );
+
+      particle.style.setProperty(
+        "--mm-size",
+        `${size}px`
+      );
+
+      particle.style.setProperty(
+        "--mm-duration",
+        `${duration}s`
+      );
+
+      particle.style.setProperty(
+        "--mm-delay",
+        `${delay}s`
+      );
+
+      particle.style.setProperty(
+        "--mm-drift",
+        `${-50 + Math.random() * 100}px`
+      );
+
+      particle.style.setProperty(
+        "--mm-color",
+        colors[i % colors.length]
+      );
+
+      container.appendChild(particle);
+    }
+
+    page.prepend(container);
+  }
+
+  /* -------------------------------------------------------
+     2. Accessible chat bubbles
+     ------------------------------------------------------- */
+
+  function scrollToLatest() {
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function addBubble(text, role) {
+    const bubble = document.createElement("div");
+
+    bubble.className = `bubble ${role}`;
+    bubble.textContent = text;
+    bubble.dataset.role = role;
+
+    if (!reducedMotion) {
+      bubble.classList.add("is-new");
+    }
+
+    messages.appendChild(bubble);
+    scrollToLatest();
+
+    return bubble;
+  }
+
+  function showThinkingBubble() {
+    const bubble = addBubble("", "bot");
+
+    bubble.classList.add("is-loading");
+    bubble.setAttribute("aria-label", "Searching for songs");
+
+    const label = document.createElement("span");
+    label.textContent = "Finding your music";
+
+    const dots = document.createElement("span");
+    dots.className = "mm-thinking";
+    dots.setAttribute("aria-hidden", "true");
+
+    for (let i = 0; i < 3; i++) {
+      dots.appendChild(document.createElement("span"));
+    }
+
+    bubble.append(label, dots);
+    scrollToLatest();
+
+    return bubble;
+  }
+
+  /* -------------------------------------------------------
+     3. Song artwork and recommendation cards
+     ------------------------------------------------------- */
+
+  function renderSongs(parent, songs) {
+    if (!Array.isArray(songs) || songs.length === 0) {
+      return;
+    }
+
+    const grid = document.createElement("div");
+    grid.className = "song-grid";
+
+    songs.forEach((song) => {
+      const card = document.createElement("article");
+      card.className = "song-card";
+
+      // Album artwork or fallback artwork.
+      if (song.artwork) {
+        const image = document.createElement("img");
+
+        image.src = song.artwork;
+        image.alt = `Artwork for ${song.title || "song"}`;
+        image.loading = "lazy";
+        image.decoding = "async";
+
+        image.addEventListener("error", () => {
+          if (!image.isConnected) return;
+
+          const placeholder = document.createElement("div");
+          placeholder.className = "art-placeholder";
+          placeholder.textContent = "♫";
+          placeholder.setAttribute("aria-label", "Music artwork");
+
+          image.replaceWith(placeholder);
+        }, { once: true });
+
+        card.appendChild(image);
+      } else {
+        const placeholder = document.createElement("div");
+
+        placeholder.className = "art-placeholder";
+        placeholder.textContent = "♫";
+        placeholder.setAttribute("aria-label", "Music artwork");
+
+        card.appendChild(placeholder);
+      }
+
+      // Song information.
+      const info = document.createElement("div");
+      info.className = "song-info";
+
+      const title = document.createElement("strong");
+      title.textContent = song.title || "Unknown title";
+
+      const artist = document.createElement("span");
+      artist.textContent = song.artist || "Unknown artist";
+
+      const metadata = document.createElement("small");
+      metadata.textContent = [
+        song.album,
+        song.release_date
+      ].filter(Boolean).join(" · ");
+
+      info.append(title, artist, metadata);
+      card.appendChild(info);
+
+      // Preview and track links.
+      const actions = document.createElement("div");
+      actions.className = "song-actions";
+
+      if (song.preview) {
+        const audio = document.createElement("audio");
+
+        audio.controls = true;
+        audio.preload = "none";
+        audio.src = song.preview;
+        audio.setAttribute(
+          "aria-label",
+          `Preview ${song.title || "song"}`
+        );
+
+        actions.appendChild(audio);
+      }
+
+      if (song.url) {
+        try {
+          const trackUrl = new URL(song.url, window.location.href);
+
+          if (
+            trackUrl.protocol === "https:" ||
+            trackUrl.protocol === "http:"
+          ) {
+            const link = document.createElement("a");
+
+            link.href = trackUrl.href;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.textContent = "Open track ↗";
+
+            actions.appendChild(link);
+          }
+        } catch {
+          // Ignore malformed external track URLs.
+        }
+      }
+
+      if (actions.childElementCount > 0) {
+        card.appendChild(actions);
+      }
+
+      grid.appendChild(card);
+    });
+
+    parent.appendChild(grid);
+    scrollToLatest();
+
+    // Animate newly created cards.
+    if (!reducedMotion) {
+      grid.querySelectorAll(".song-card").forEach((card, index) => {
+        card.animate(
+          [
+            {
+              opacity: 0,
+              transform: "translateY(14px) scale(0.97)"
+            },
+            {
+              opacity: 1,
+              transform: "translateY(0) scale(1)"
+            }
+          ],
+          {
+            duration: 350,
+            delay: Math.min(index * 65, 390),
+            easing: "cubic-bezier(.2,.8,.2,1)",
+            fill: "both"
+          }
+        );
+      });
+    }
+
+    // Add 3D tilt listeners only on pointer devices.
+    if (!touchDevice && !reducedMotion) {
+      enableCardTilt(grid);
+    }
+  }
+
+  /* -------------------------------------------------------
+     4. Interactive 3D card tilt
+     ------------------------------------------------------- */
+
+  function enableCardTilt(root) {
+    root.querySelectorAll(".song-card").forEach((card) => {
+      if (card.dataset.tiltReady === "true") return;
+
+      card.dataset.tiltReady = "true";
+
+      card.addEventListener("pointermove", (event) => {
+        if (event.pointerType === "touch") return;
+
+        const rect = card.getBoundingClientRect();
+
+        if (!rect.width || !rect.height) return;
+
+        const x = (event.clientX - rect.left) / rect.width;
+        const y = (event.clientY - rect.top) / rect.height;
+
+        const rotateY = (x - 0.5) * 12;
+        const rotateX = (0.5 - y) * 12;
+
+        card.style.setProperty(
+          "--mm-rx",
+          `${rotateX.toFixed(2)}deg`
+        );
+
+        card.style.setProperty(
+          "--mm-ry",
+          `${rotateY.toFixed(2)}deg`
+        );
+
+        card.style.setProperty("--mm-lift", "-4px");
+      });
+
+      card.addEventListener("pointerleave", () => {
+        card.style.setProperty("--mm-rx", "0deg");
+        card.style.setProperty("--mm-ry", "0deg");
+        card.style.setProperty("--mm-lift", "0px");
+      });
+    });
+  }
+
+  /* -------------------------------------------------------
+     5. Gentle 3D logo interaction
+     ------------------------------------------------------- */
+
+  function enableLogoInteraction() {
+    const logo = document.querySelector(".brand-icon");
+    const brand = document.querySelector(".brand");
+
+    if (!logo || !brand || touchDevice || reducedMotion) {
+      return;
+    }
+
+    brand.addEventListener("pointermove", (event) => {
+      const rect = brand.getBoundingClientRect();
+
+      const x = (event.clientX - rect.left) / rect.width;
+      const y = (event.clientY - rect.top) / rect.height;
+
+      const rotateY = (x - 0.5) * 25;
+      const rotateX = (0.5 - y) * 18;
+
+      logo.style.transform =
+        `perspective(350px) rotateX(${rotateX}deg) ` +
+        `rotateY(${rotateY}deg) translateY(-2px)`;
+    });
+
+    brand.addEventListener("pointerleave", () => {
+      logo.style.transform = "";
+    });
+  }
+
+  /* -------------------------------------------------------
+     6. Send messages to Flask
+     ------------------------------------------------------- */
+
+  async function sendMessage(text) {
+    const message = String(text || "").trim();
+
+    if (!message || requestPending) return;
+
+    requestPending = true;
+    sendButton.disabled = true;
+    input.disabled = true;
+
+    addBubble(message, "user");
+    input.value = "";
+
+    const loading = showThinkingBubble();
+
+    try {
+      const response = await fetch("/api/recommend", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({ message })
+      });
+
+      // Read the body safely in case the server returns an error page.
+      const contentType = response.headers.get("content-type") || "";
+
+      if (!contentType.includes("application/json")) {
+        throw new Error(
+          "The server returned an unexpected response. Check your Flask API."
+        );
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.reply || `Request failed (${response.status}).`
+        );
+      }
+
+      loading.classList.remove("is-loading");
+      loading.removeAttribute("aria-label");
+      loading.replaceChildren();
+
+      const reply = document.createElement("span");
+      reply.textContent =
+        data.reply || "Here are some songs you might like.";
+
+      loading.appendChild(reply);
+
+      if (Array.isArray(data.songs) && data.songs.length > 0) {
+        renderSongs(loading, data.songs);
+      }
+
+    } catch (error) {
+      loading.classList.remove("is-loading");
+      loading.removeAttribute("aria-label");
+      loading.replaceChildren();
+
+      const errorMessage = document.createElement("span");
+
+      errorMessage.textContent =
+        error instanceof TypeError
+          ? "I couldn't reach Flask. Check that your Python server is running and try again."
+          : (
+              error.message ||
+              "Something went wrong. Please try again."
+            );
+
+      loading.appendChild(errorMessage);
+
+    } finally {
+      requestPending = false;
+      sendButton.disabled = false;
+      input.disabled = false;
+      input.focus();
+      scrollToLatest();
+    }
+  }
+
+  /* -------------------------------------------------------
+     7. Form submission
+     ------------------------------------------------------- */
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    sendMessage(input.value);
+  });
+
+  /* -------------------------------------------------------
+     8. Quick mood and artist suggestions
+     ------------------------------------------------------- */
+
+  document.querySelectorAll(".suggestion").forEach((button) => {
+    button.addEventListener("click", () => {
+      const prompt = button.dataset.prompt;
+
+      if (prompt) {
+        sendMessage(prompt);
+      }
+    });
+  });
+
+  /* -------------------------------------------------------
+     9. Start the visual effects
+     ------------------------------------------------------- */
+
+  createAmbientParticles();
+  enableLogoInteraction();
+
+  if (workspace && !reducedMotion && !touchDevice) {
+    workspace.addEventListener("pointermove", (event) => {
+      const rect = workspace.getBoundingClientRect();
+
+      if (!rect.width || !rect.height) return;
+
+      // Only subtle lighting, not a strong panel tilt.
+      const x = (event.clientX - rect.left) / rect.width;
+      const y = (event.clientY - rect.top) / rect.height;
+
+      workspace.style.setProperty(
+        "--mm-pointer-x",
+        `${(x * 100).toFixed(1)}%`
+      );
+
+      workspace.style.setProperty(
+        "--mm-pointer-y",
+        `${(y * 100).toFixed(1)}%`
+      );
+    });
+  }
+
+  console.log("MelodyMatch 3D interactions initialized.");
+});

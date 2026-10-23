@@ -1242,3 +1242,125 @@ footer {
     transform: none !important
   }
 }
+
+
+
+/* Voice search controls */
+.voice-button {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 14px;
+  background: #111d30;
+  color: #dbeafe;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.voice-button svg {
+  width: 23px;
+  height: 23px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.voice-button:hover:not(:disabled) {
+  background: #1d304b;
+  border-color: #38bdf8;
+  transform: translateY(-1px);
+}
+
+.voice-button:focus-visible,
+.send-button:focus-visible,
+.voice-controls select:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 3px;
+}
+
+.voice-button.is-listening {
+  color: #fff;
+  background: #dc2626;
+  border-color: #f87171;
+  animation: voice-pulse 1.2s infinite;
+}
+
+.voice-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.voice-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  color: #a7b5ca;
+  font-size: 13px;
+}
+
+.voice-controls select {
+  max-width: 100%;
+  padding: 8px 11px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 10px;
+  background: #0d192a;
+  color: #e5edf9;
+  font: inherit;
+  cursor: pointer;
+}
+
+#voice-status {
+  flex: 1 1 180px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #93a4bd;
+}
+
+.voice-button.is-listening ~ .send-button {
+  transition: opacity 0.2s ease;
+}
+
+@keyframes voice-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(248, 113, 113, 0.08);
+  }
+}
+
+@media (max-width: 520px) {
+  .voice-button {
+    width: 42px;
+    height: 42px;
+    flex-basis: 42px;
+  }
+
+  .voice-controls {
+    align-items: flex-start;
+  }
+
+  .voice-controls select {
+    flex: 1 1 140px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-button,
+  .voice-button.is-listening {
+    animation: none;
+    transition: none;
+  }
+}

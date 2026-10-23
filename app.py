@@ -321,8 +321,6 @@ def recommend():
         }),
         500,
     )
-
-
 @app.route("/health", methods=["GET"])
 def health():
   return jsonify({"status": "ok", "service": "music-recommendation-chatbot"})
